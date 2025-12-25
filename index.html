@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Glass Inside - Expert Edition</title>
+    <style>
+        :root {
+            --bg: #1a1a24;
+            --text: #ffffff;
+            --sec-bg: #2b2b36;
+            --accent: #c084fc;
+            --hint: #a1a1aa;
+            --heart: #ff4b5c;
+            --food-bg: rgba(192, 132, 252, 0.15);
+        }
+
+        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-bottom: 100px; overflow-x: hidden; }
+        .screen { display: none; padding: 20px; animation: fadeIn 0.2s ease; }
+        .screen.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* ИЗБРАННОЕ */
+        .fav-btn { position: absolute; top: 10px; right: 10px; font-size: 20px; z-index: 5; background: rgba(0,0,0,0.3); border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .fav-btn.active { color: var(--heart); }
+
+        /* КАРТОЧКИ */
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .card { background: var(--sec-bg); border-radius: 20px; padding: 15px; position: relative; min-height: 280px; text-align: center; display: flex; flex-direction: column; justify-content: space-between; border: 1px solid rgba(255,255,255,0.05); }
+        .card img { width: 100%; height: 140px; object-fit: contain; background: white; border-radius: 15px; cursor: pointer; }
+        .card h4 { margin: 10px 0 5px; font-size: 14px; line-height: 1.2; height: 34px; overflow: hidden; }
+
+        /* ПОИСК И СЕЛЕКТ */
+        .controls { position: sticky; top: 0; background: var(--bg); z-index: 10; padding-bottom: 15px; }
+        select, input { width: 100%; padding: 12px; border-radius: 12px; background: var(--sec-bg); color: #fff; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px; box-sizing: border-box; font-size: 16px; outline: none; }
+
+        .food-badge { display: inline-block; background: var(--food-bg); color: var(--accent); padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; margin: 10px 0; border: 1px solid var(--accent); }
+
+        /* ВИКИВИНО */
+        .wiki-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .wiki-tab { flex: 1; padding: 12px; background: var(--sec-bg); border-radius: 12px; text-align: center; font-size: 14px; opacity: 0.6; cursor: pointer; }
+        .wiki-tab.active { opacity: 1; background: var(--accent); color: #000; font-weight: bold; }
+        .wiki-item { background: var(--sec-bg); padding: 15px; border-radius: 15px; margin-bottom: 10px; border-left: 4px solid var(--accent); cursor: pointer; }
+
+        /* НАВИГАЦИЯ */
+        .nav { position: fixed; bottom: 0; width: 100%; background: var(--sec-bg); display: flex; height: 85px; align-items: center; border-top: 1px solid rgba(255,255,255,0.1); z-index: 1000; padding-bottom: env(safe-area-inset-bottom); }
+        .nav-item { flex: 1; text-align: center; opacity: 0.5; font-size: 11px; color: var(--text); text-decoration: none; cursor: pointer; }
+        .nav-item.active { opacity: 1; color: var(--accent); }
+        .nav-icon { font-size: 22px; margin-bottom: 4px; }
+
+        /* МОДАЛКИ */
+        #details, #wiki-popup, #zoom-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); display: none; z-index: 2000; padding: 25px; overflow-y: auto; box-sizing: border-box; }
+        #zoom-modal { background: rgba(0,0,0,0.9); display: none; justify-content: center; align-items: center; z-index: 3000; }
+        .back-link { color: var(--accent); font-weight: bold; margin-bottom: 20px; display: inline-block; cursor: pointer; }
+        
+        #loader { text-align: center; padding: 20px; color: var(--accent); display: none; }
+    </style>
+</head>
+<body>
+
+    <div id="screen-profile" class="screen">
+        <div style="background: var(--sec-bg); border-radius: 25px; padding: 25px; text-align: center;">
+            <img id="user-img" style="width: 80px; height: 80px; border-radius: 50%; border: 2px solid var(--accent); margin-bottom: 10px; background: #444;" src="https://via.placeholder.com/80?text=V">
+            <h2 id="user-name" style="margin: 0;">Винолюб</h2>
+            <p id="user-login" style="color: var(--hint); margin-top: 5px;">@username</p>
+        </div>
+        <h3 style="margin-top: 30px;">❤️ Моя коллекция</h3>
+        <div id="fav-grid" class="grid"></div>
+    </div>
+
+    <div id="screen-school" class="screen">
+        <h2>🎓 Школа</h2>
+        <div onclick="tg.showPopup({message:'Курс в разработке'})" style="background: var(--sec-bg); padding: 20px; border-radius: 20px; margin-bottom: 12px;">
+            <h3 style="margin:0">🌱 Базовый курс</h3>
+            <p style="font-size: 13px; color: var(--hint); margin: 5px 0 0;">Основы дегустации и классификация.</p>
+        </div>
+    </div>
+
+    <div id="screen-wiki" class="screen">
+        <h2>📚 ВикиВино</h2>
+        <div class="wiki-tabs">
+            <div class="wiki-tab active" id="tab-terms" onclick="toggleWiki('terms')">Термины</div>
+            <div class="wiki-tab" id="tab-myths" onclick="toggleWiki('myths')">Мифы</div>
+        </div>
+        <div id="wiki-content"></div>
+    </div>
+
+    <div id="screen-catalog" class="screen">
+        <div class="controls">
+            <select id="cat-sel" onchange="load()">
+                <option value="reds">🍷 Красные</option>
+                <option value="whites">🥂 Белые</option>
+                <option value="sparkling">🍾 Игристые</option>
+                <option value="rose">🌸 Розовые</option>
+                <option value="dessert">🍯 Десертные</option>
+            </select>
+            <input type="text" id="wine-search" placeholder="🔍 Поиск..." oninput="render()">
+        </div>
+        <div id="loader">Загрузка данных...</div>
+        <div id="grid" class="grid"></div>
+    </div>
+
+    <div id="details">
+        <span class="back-link" onclick="closeDetails()">❮ НАЗАД</span>
+        <div id="det-body"></div>
+    </div>
+
+    <div id="wiki-popup">
+        <span class="back-link" onclick="document.getElementById('wiki-popup').style.display='none'">❮ ЗАКРЫТЬ</span>
+        <h2 id="wiki-title" style="color:var(--accent)"></h2>
+        <div id="wiki-body" style="line-height: 1.6; font-size: 16px;"></div>
+    </div>
+
+    <div id="zoom-modal" onclick="this.style.display='none'">
+        <img id="zoom-img" style="max-width:90%; max-height:80%; border-radius:10px;">
+    </div>
+
+    <div class="nav">
+        <div class="nav-item active" id="t-profile" onclick="setTab('profile')"><div class="nav-icon">👤</div>Профиль</div>
+        <div class="nav-item" id="t-catalog" onclick="setTab('catalog')"><div class="nav-icon">🍷</div>Каталог</div>
+        <div class="nav-item" id="t-school" onclick="setTab('school')"><div class="nav-icon">🎓</div>Школа</div>
+        <div class="nav-item" id="t-wiki" onclick="setTab('wiki')"><div class="nav-icon">📚</div>ВикиВино</div>
+    </div>
+
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        let allWines = [];
+        let favorites = JSON.parse(localStorage.getItem('fav_wines') || '[]');
+
+        // ССЫЛКА НА ВАШ ФАЙЛ В РЕПОЗИТОРИИ
+        const DATA_URL = 'https://gervnotfound.github.io/Glass-Inside-/data.json';
+
+        const wikiData = {
+            terms: [
+                { t: "Аэрация", d: "Процесс насыщения вина кислородом." },
+                { t: "Терруар", d: "Влияние почвы и климата на вкус." }
+            ],
+            myths: [
+                { t: "Ложка в бутылке", d: "Миф! Не спасает пузырьки." }
+            ]
+        };
+
+        function setTab(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById(`screen-${id}`).classList.add('active');
+            document.getElementById(`t-${id}`).classList.add('active');
+            if(id === 'catalog' && allWines.length === 0) load();
+            if(id === 'profile') renderFavs();
+        }
+
+        async function load() {
+            const cat = document.getElementById('cat-sel').value;
+            const loader = document.getElementById('loader');
+            const grid = document.getElementById('grid');
+            
+            loader.style.display = 'block';
+            grid.innerHTML = '';
+
+            try {
+                // Добавляем случайный параметр, чтобы избежать старого кэша
+                const res = await fetch(`${DATA_URL}?v=${new Date().getTime()}`);
+                const db = await res.json();
+                allWines = db[cat] || [];
+                render();
+            } catch (e) {
+                grid.innerHTML = '<p style="text-align:center; width:100%;">Ошибка загрузки data.json</p>';
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+
+        function render() {
+            const query = document.getElementById('wine-search').value.toLowerCase();
+            const filtered = allWines.filter(w => w.wine.toLowerCase().includes(query));
+            document.getElementById('grid').innerHTML = filtered.map(w => {
+                const isFav = favorites.some(f => f.id === w.id);
+                return `
+                <div class="card">
+                    <div class="fav-btn ${isFav ? 'active' : ''}" onclick="toggleFav(${w.id}, event)">❤</div>
+                    <img src="${w.image}" onclick="zoomImg('${w.image}')" onerror="this.src='https://via.placeholder.com/100?text=Wine'">
+                    <div onclick="showFull(${w.id})">
+                        <h4>${w.wine}</h4>
+                        <div style="color:#facc15">★ ${w.rating || '4.8'}</div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function showFull(id, fromFav = false) {
+            const w = fromFav ? favorites.find(x => x.id === id) : allWines.find(x => x.id === id);
+            if(!w) return;
+            document.getElementById('det-body').innerHTML = `
+                <img src="${w.image}" style="width:100%; height:250px; object-fit:contain; background:#fff; border-radius:20px; padding:10px;">
+                <h2>${w.wine}</h2>
+                <div class="food-badge">🍽 ${w.food || 'Универсальная закуска'}</div>
+                <p style="color:var(--hint)">${w.winery} • ${w.location}</p>
+                <div style="background:var(--sec-bg); padding:20px; border-radius:15px; margin:15px 0;">
+                    <b>Описание:</b><br><br>${w.info}
+                </div>
+            `;
+            document.getElementById('details').style.display = 'block';
+        }
+
+        function toggleFav(id, event) {
+            event.stopPropagation();
+            const wine = allWines.find(w => w.id === id) || favorites.find(w => w.id === id);
+            const index = favorites.findIndex(f => f.id === id);
+            if(index > -1) favorites.splice(index, 1);
+            else favorites.push(wine);
+            localStorage.setItem('fav_wines', JSON.stringify(favorites));
+            render();
+            renderFavs();
+        }
+
+        function renderFavs() {
+            const container = document.getElementById('fav-grid');
+            if(favorites.length === 0) {
+                container.innerHTML = '<p style="grid-column:1/3; text-align:center; padding:20px;">Пусто</p>';
+                return;
+            }
+            container.innerHTML = favorites.map(w => `
+                <div class="card">
+                    <div class="fav-btn active" onclick="toggleFav(${w.id}, event)">❤</div>
+                    <img src="${w.image}" onclick="showFull(${w.id}, true)" onerror="this.src='https://via.placeholder.com/100?text=Wine'">
+                    <h4>${w.wine}</h4>
+                </div>
+            `).join('');
+        }
+
+        function toggleWiki(type) {
+            document.querySelectorAll('.wiki-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(`tab-${type}`).classList.add('active');
+            document.getElementById('wiki-content').innerHTML = wikiData[type].map(item => `
+                <div class="wiki-item" onclick="showWikiPop('${item.t}', '${item.d}')">
+                    <strong>${item.t}</strong>
+                </div>
+            `).join('');
+        }
+
+        function showWikiPop(title, body) {
+            document.getElementById('wiki-title').innerText = title;
+            document.getElementById('wiki-body').innerHTML = body;
+            document.getElementById('wiki-popup').style.display = 'block';
+        }
+
+        function zoomImg(src) {
+            document.getElementById('zoom-img').src = src;
+            document.getElementById('zoom-modal').style.display = 'flex';
+        }
+
+        function closeDetails() { document.getElementById('details').style.display = 'none'; }
+
+        // Инициализация профиля
+        const user = tg.initDataUnsafe.user;
+        if(user) {
+            document.getElementById('user-name').innerText = user.first_name;
+            document.getElementById('user-login').innerText = user.username ? '@' + user.username : 'ID: ' + user.id;
+            if(user.photo_url) document.getElementById('user-img').src = user.photo_url;
+        }
+
+        setTab('profile');
+    </script>
+</body>
+</html>
